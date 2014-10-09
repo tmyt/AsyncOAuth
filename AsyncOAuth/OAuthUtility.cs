@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Text;
+using Windows.Web.Http;
+using Windows.Web.Http.Filters;
 
 namespace AsyncOAuth
 {
@@ -85,13 +86,13 @@ namespace AsyncOAuth
 
         public static HttpClient CreateOAuthClient(string consumerKey, string consumerSecret, AccessToken accessToken, IEnumerable<KeyValuePair<string, string>> optionalOAuthHeaderParameters = null)
         {
-            return new HttpClient(new OAuthMessageHandler(consumerKey, consumerSecret, accessToken, optionalOAuthHeaderParameters));
+            return new HttpClient(new OAuthMessageFilter(consumerKey, consumerSecret, accessToken, optionalOAuthHeaderParameters));
         }
 
 
-        public static HttpClient CreateOAuthClient(HttpMessageHandler innerHandler, string consumerKey, string consumerSecret, AccessToken accessToken, IEnumerable<KeyValuePair<string, string>> optionalOAuthHeaderParameters = null)
+        public static HttpClient CreateOAuthClient(IHttpFilter innerFilter, string consumerKey, string consumerSecret, AccessToken accessToken, IEnumerable<KeyValuePair<string, string>> optionalOAuthHeaderParameters = null)
         {
-            return new HttpClient(new OAuthMessageHandler(innerHandler, consumerKey, consumerSecret, accessToken, optionalOAuthHeaderParameters));
+            return new HttpClient(new OAuthMessageFilter(innerFilter, consumerKey, consumerSecret, accessToken, optionalOAuthHeaderParameters));
         }
     }
 }

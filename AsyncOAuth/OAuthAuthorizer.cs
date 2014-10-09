@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
+using Windows.Web.Http;
 
 namespace AsyncOAuth
 {
@@ -18,16 +18,16 @@ namespace AsyncOAuth
             this.consumerSecret = consumerSecret;
         }
 
-        async Task<TokenResponse<T>> GetTokenResponse<T>(string url, OAuthMessageHandler handler, HttpContent postValue, Func<string, string, T> tokenFactory) where T : Token
+        async Task<TokenResponse<T>> GetTokenResponse<T>(string url, OAuthMessageFilter filter, IHttpContent postValue, Func<string, string, T> tokenFactory) where T : Token
         {
-            var client = new HttpClient(handler);
+            var client = new HttpClient(filter);
 
-            var response = await client.PostAsync(url, postValue ?? new FormUrlEncodedContent(Enumerable.Empty<KeyValuePair<string, string>>())).ConfigureAwait(false);
-            var tokenBase = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var response = await client.PostAsync(new Uri(url), postValue ?? new HttpFormUrlEncodedContent(Enumerable.Empty<KeyValuePair<string, string>>())).AsTask().ConfigureAwait(false);
+            var tokenBase = await response.Content.ReadAsStringAsync().AsTask().ConfigureAwait(false);
 
-            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+            if (response.StatusCode != HttpStatusCode.Ok)
             {
-                throw new HttpRequestException(response.StatusCode + ":" + tokenBase); // error message
+                throw new System.Net.Http.HttpRequestException(response.StatusCode + ":" + tokenBase); // error message
             }
 
             var splitted = tokenBase.Split('&').Select(s => s.Split('=')).ToLookup(xs => xs[0], xs => xs[1]);
@@ -48,16 +48,16 @@ namespace AsyncOAuth
         }
 
         /// <summary>asynchronus get RequestToken</summary>
-        public Task<TokenResponse<RequestToken>> GetRequestToken(string requestTokenUrl, IEnumerable<KeyValuePair<string, string>> parameters = null, HttpContent postValue = null)
+        public Task<TokenResponse<RequestToken>> GetRequestToken(string requestTokenUrl, IEnumerable<KeyValuePair<string, string>> parameters = null, IHttpContent postValue = null)
         {
             Precondition.NotNull(requestTokenUrl, "requestTokenUrl");
 
-            var handler = new OAuthMessageHandler(consumerKey, consumerSecret, token: null, optionalOAuthHeaderParameters: parameters);
+            var handler = new OAuthMessageFilter(consumerKey, consumerSecret, token: null, optionalOAuthHeaderParameters: parameters);
             return GetTokenResponse(requestTokenUrl, handler, postValue, (key, secret) => new RequestToken(key, secret));
         }
 
         /// <summary>asynchronus get GetAccessToken</summary>
-        public Task<TokenResponse<AccessToken>> GetAccessToken(string accessTokenUrl, RequestToken requestToken, string verifier, IEnumerable<KeyValuePair<string, string>> parameters = null, HttpContent postValue = null)
+        public Task<TokenResponse<AccessToken>> GetAccessToken(string accessTokenUrl, RequestToken requestToken, string verifier, IEnumerable<KeyValuePair<string, string>> parameters = null, IHttpContent postValue = null)
         {
             Precondition.NotNull(accessTokenUrl, "accessTokenUrl");
             Precondition.NotNull(requestToken, "requestToken");
@@ -66,7 +66,7 @@ namespace AsyncOAuth
             var verifierParam = new KeyValuePair<string, string>("oauth_verifier", verifier.Trim());
 
             if (parameters == null) parameters = Enumerable.Empty<KeyValuePair<string, string>>();
-            var handler = new OAuthMessageHandler(consumerKey, consumerSecret, token: requestToken, optionalOAuthHeaderParameters: parameters.Concat(new[] { verifierParam }));
+            var handler = new OAuthMessageFilter(consumerKey, consumerSecret, token: requestToken, optionalOAuthHeaderParameters: parameters.Concat(new[] { verifierParam }));
 
             return GetTokenResponse(accessTokenUrl, handler, postValue, (key, secret) => new AccessToken(key, secret));
         }
